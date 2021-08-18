@@ -1,0 +1,11 @@
+# lighthouseci
+.lighthouseci
+
+# node
+node_modules
+
+# Editor
+.vscode
+
+.DS_Store
+report/*

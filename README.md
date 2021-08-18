@@ -8,8 +8,8 @@
 $ npm i
 ```
 
-### autorun
+### run
 
 ```
-$ npm lh.js
+$ node lh.js
 ```
