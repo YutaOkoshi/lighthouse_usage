@@ -8,6 +8,8 @@
   "license": "ISC",
   "dependencies": {
     "@lhci/cli": "^0.8.0",
+    "csv": "^5.5.0",
+    "dotenv": "^10.0.0",
     "md5": "^2.3.0",
     "puppeteer": "^10.2.0",
     "time-stamp": "^2.2.0"

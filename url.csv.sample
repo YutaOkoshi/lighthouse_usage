@@ -1,0 +1,4 @@
+doLogin,url
+false, https://example.com/
+true, https://example.com/mypage
+true, https://example.com/reservation/1

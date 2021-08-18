@@ -2,38 +2,20 @@ const fs = require("fs");
 const puppeteer = require("puppeteer");
 const lighthouse = require("lighthouse");
 const ReportGenerator = require("lighthouse/lighthouse-core/report/report-generator");
-const md5 = require('md5');
 const timestamp = require('time-stamp');
-
-const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36"
-const USERNAME = "username";
-const PASSWORD = "pw";
-const PORT = 8041;
-const LOGIN_URL = "https://example.com/login"
-const URLS = [
-  "https://example.com/",
-  "https://example.com/questions",
-  "https://example.com/mypage"
-]
+const csvSync = require('csv-parse/lib/sync');
+const dotenv = require('dotenv');
+const result = dotenv.config();
+if (result.error) {
+  throw result.error
+}
 
 const flags = {
-  logLevel: "info", // or silent|error|info|debug
-  emulatedUserAgent: UA,
-  port: PORT, // puppeteerで利用するブラウザと同じPORTを利用することで、sessionが継続される
+  logLevel: "error", // or silent|error|info|debug
+  emulatedUserAgent: process.env.UA,
+  port: process.env.PORT, // puppeteerで利用するブラウザと同じPORTを利用することで、sessionが継続される
   disableStorageReset: true,
 };
-
-const selector = {
-  class(attribute, className) {
-    return `${attribute}[class='${className}']`
-  },
-  type(attribute, value) {
-    return `${attribute}[type='${value}']`
-  },
-  id(value) {
-    return `#${value}`
-  }
-}
 
 const config = {
   extends: "lighthouse:default",
@@ -53,33 +35,104 @@ const config = {
   },
 };
 
+// const selector = {
+//   class(attribute, className) {
+//     return `${attribute}[class='${className}']`
+//   },
+//   type(attribute, value) {
+//     return `${attribute}[type='${value}']`
+//   },
+//   id(value) {
+//     return `#${value}`
+//   }
+// }
+
+const createReport = async (urls, dirname) => {
+
+  if (!fs.existsSync(dirname)) {
+    console.info("Create report dir ...");
+    fs.mkdir(dirname, {
+      recursive: true
+    }, (err) => {
+      if (err) throw err;
+    });
+  }
+
+  counter = 1;
+  for (const url of urls) {
+
+    console.info(`Access to ${url} ...`);
+    const result = await lighthouse(url, flags, config);
+    const report = await ReportGenerator.generateReport(result.lhr, process.env.REPORT_FORMAT); // html | json | csv
+    console.info("Save report ...");
+    // 数値はゼロ埋め
+    fs.writeFileSync(`${dirname}/report-${('000'+counter).slice(-4)}.${process.env.REPORT_FORMAT}`, report);
+    counter++;
+  }
+}
+
+const getUrls = async () => {
+  if (!fs.existsSync(process.env.URL_FILE)) {
+    console.info(`Not found ${process.env.URL_FILE}`);
+    if (err) throw err;
+  }
+
+  obj = await fs.promises.readFile(process.env.URL_FILE, 'utf-8');
+  res = csvSync(obj, {
+    columns: true
+  });
+
+  loginUrls = []
+  noLoginUrls = []
+  res.forEach(e => {
+    if (e.doLogin == "true") {
+      loginUrls.push(e.url);
+    } else {
+      noLoginUrls.push(e.url);
+    }
+  });
+
+  return {
+    loginUrls,
+    noLoginUrls
+  }
+}
+
+// const login = async () => {
+// console.info("Now login ...");
+
+// await page.goto(LOGIN_URL);
+// await page.type(selector.id('GsUserEmail'), USERNAME);
+// await page.type(selector.id('GsUserPassword'), PASSWORD);
+// await Promise.all([page.click(selector.type('button', 'submit')), page.waitForNavigation()]);
+// }
+
 const main = async () => {
-  console.info("Now login ...");
+
+  urls = await getUrls();
+  console.debug(urls)
+
   const browser = await puppeteer.launch({
-    args: [`--remote-debugging-port=${PORT}`],
+    args: [`--remote-debugging-port=${process.env.PORT}`],
     headless: true,
   });
   const page = await browser.newPage();
+  
+  now = timestamp("YYYYMMDDHHmmss")
+  dir = `report/${now}/NoLogin`;
+  await createReport(urls.noLoginUrls, dir);
+  // await page.close(); 
 
-  await page.goto(LOGIN_URL);
+  console.info("Now login ...");
+  await page.goto(process.env.LOGIN_URL);
+  await page.type(process.env.ID_SELECTOR, process.env.USERNAME);
+  await page.type(process.env.PASSWORD_SELECTOR, process.env.PASSWORD);
+  await Promise.all([page.click(process.env.SUBMIT_SELECTOR), page.waitForNavigation()]);
+  // await page.close(); 
 
-  await page.type(selector.id('email'), USERNAME);
-  await page.type(selector.id('password'), PASSWORD);
-  await Promise.all([page.click(selector.type('button', 'submit')), page.waitForNavigation()]);
-
-  await page.close(); // ページは閉じるが、ブラウザは閉じない
-
-  console.info("Running lighthouse ...");
-
-  for (const url of URLS) {
-    // TODO: lighthouse ci だとセッションを保持してくれない。。。？browserが保持してくれなかった
-    const result = await lighthouse(url, flags, config);
-    const html = ReportGenerator.generateReport(result.lhr, "html"); // HTML出力する
-    console.info("Save report ...");
-
-    fs.writeFileSync(`report/report-${md5(url).substr(0,5)}-${timestamp("YYYYMMDDmmss")}.html`, html);
-  }
-
+  dir = `report/${now}/Login`;
+  await createReport(urls.loginUrls, dir);
+  // await page.close(); 
 
   await browser.close();
 };
