@@ -1,6 +1,6 @@
 # lighthouse_usage
 
-### init install
+## init install
 
 ```
 $ npm i
@@ -8,7 +8,7 @@ $ npm i
 
 ## need file
 
-```
+```bash
 $ cp .env.sample .env
 $ cp url.csv.sample url.csv
 ```
