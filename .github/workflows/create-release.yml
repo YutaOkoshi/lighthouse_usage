@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     # 毎週月曜日の朝9時
-    - cron: '0 0 * * 0'
+    - cron: '0 0 * * 1'
 
 jobs:
   create-release-pr:
@@ -21,3 +21,4 @@ jobs:
           GIT_PR_RELEASE_BRANCH_PRODUCTION: main
           GIT_PR_RELEASE_BRANCH_STAGING: develop
           GIT_PR_RELEASE_TEMPLATE: .git-pr-release-template
+          TZ: Asia/Tokyo
